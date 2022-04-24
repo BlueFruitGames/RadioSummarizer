@@ -21,14 +21,14 @@ Other libraries which are used in the project are:
 - pydub is used to work with the audio (like finding the points for trimming)
 
 SETUP:
-	-To execute the program, you have to download the vosk model for your language manually and place in the model's folder and rename it to "vosk_model".
-	- Call pip install -r requirements.txt to install the requirements.
+-To execute the program, you have to download the vosk model for your language manually and place in the model's folder and rename it to "vosk_model".
+- Call pip install -r requirements.txt to install the requirements.
 
 EXECUTION:
 To start the application, you have to run: python Main.py
 
 Additionally, you have to provide additional flags to run the program correctly. The available flags are:
--b path	=> Path to a folder with the audio files that contain one of the sound samples that is played at the beginning of the broadcast. 
+-b path		=> Path to a folder with the audio files that contain one of the sound samples that is played at the beginning of the broadcast. 
 		   They should be relatively close in their length, and no spoken words must be in this sample. The files have to be of type .mp3.
 -c number 	=> (Optional) Threshold, which will be applied at the search for the start and end signal.
 		   If the highest correlation value is below the provided number, it will be counted as no valid point was found.
@@ -37,7 +37,7 @@ Additionally, you have to provide additional flags to run the program correctly.
 -e path 	=> Path to a folder with the audio files that contain one of the sound samples that is played at the end of the broadcast. 
 		   They should be relatively close in their length, and no spoken words must be in this sample. The files have to be of type .mp3.
 -h 		=> To display all available flags include a short description
--i path	=> Path to the source file containing the news broadcast. It has to be of type .mp3.
+-i path		=> Path to the source file containing the news broadcast. It has to be of type .mp3.
 -l string	=> (Optional) Can be used to set the language which is used in the source audio. For this, you have to provide the specific language code 
 		   which you can find in the stanza documentation. Defaults to "de"
 -o path 	=> (Optional) Path to the output directory. Defaults to "output".
