@@ -1,0 +1,5 @@
+AudioFiles
+Program/__pycache__
+Program/models/*
+Report/Report.docx
+output
