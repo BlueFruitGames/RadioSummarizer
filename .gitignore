@@ -1,5 +1,5 @@
 AudioFiles
-Program/__pycache__
-Program/models/*
-Report/Report.docx
+src/__pycache__
+src/models/*
+docs/Report.docx
 output
