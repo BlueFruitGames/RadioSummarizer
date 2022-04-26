@@ -10,8 +10,13 @@ from deepmultilingualpunctuation import PunctuationModel
 from pyannote.audio import Pipeline
 
 model_path = os.path.join("models", "vosk_model")
-# Sets up the logger for this module
+
 def setup_logging_summarizer(log_level):
+    """Sets up the logger for this module
+
+    Args:
+        log_level (str): the selected loglevel
+    """
     global logger 
     logger = logging.getLogger('RadioSummarizer')
     ch = logging.StreamHandler()
@@ -25,8 +30,14 @@ def setup_logging_summarizer(log_level):
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-#Converts the audio in the source file to text and saves it to a .txt
 def speech_to_text(source_file, output_file, language):
+    """Converts source_file to an output file containing the text representation of the broadcast 
+
+    Args:
+        source_file (str): path to the source file
+        output_file (str): path to the output file
+        language (str): language code
+    """
     SetLogLevel(-1)
     logger.info('Setting up speech-to-text model...')
     model = Model(model_path)
@@ -40,10 +51,17 @@ def speech_to_text(source_file, output_file, language):
     text = adjust_text_after_capitalization(text)
     logger.info(text)
     save_to_txt(text,output_file) 
-    
-# Converts the audio of the source file to text 
-# Returns a list with the recognized words and the time in the audio
+
 def generate_text(source_file, model):
+    """Converts the source_file into its text representation
+
+    Args:
+        source_file (str): path to the source file
+        model (vosk.Model): the vosk model to use
+
+    Returns:
+        list: list containing the recognized words with their start and end time
+    """
     wf = wave.open(source_file, "rb")
     logger.info('Converting speech to text...')
     rec = KaldiRecognizer(model, wf.getframerate())
@@ -75,19 +93,34 @@ def generate_text(source_file, model):
             word_list.append([cur_word["word"], True, cur_word["start"], cur_word["end"]])
     return word_list
 
-# Creates chunks of frames separeted by speaking pauses
-# Returns a list with the seperated chunks
-def split_audio(path, min_silence_len, silence_thresh):
-    audio = AudioSegment.from_wav(path)
+def split_audio(source_file, min_silence_len, silence_thresh):
+    """Splits the audio at times where a dB is below silence_thresh
+
+    Args:
+        source_file (str): path to the source audio
+        min_silence_len (int): length of silence_thresh needed to be recognized as separation point
+        silence_thresh (int): dB threshold for silent parts
+
+    Returns:
+        list: Contains the seperated chunks of frames
+    """
+    audio = AudioSegment.from_wav(source_file)
     chunks = split_on_silence(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
     frames = []
     for chunk in chunks:
         frames.append(int(chunk.frame_count()))
     return frames
 
-# Merges the chunks of frames so that it doesn't not exceed max_split_count
-# Returns the updated list of frames
 def merge_splits(frames, max_split_count):
+    """merges the separated frames together until count of splits is <= max_split_count
+
+    Args:
+        frames (list): list containing the separated frames
+        max_split_count (int): number of maximum splits
+
+    Returns:
+        list: updated list of frames
+    """
     temp = []
     while len(frames) > max_split_count:
         temp = [];
@@ -121,9 +154,15 @@ def merge_splits(frames, max_split_count):
         frames = temp.copy()
     return frames   
 
-# Detectes when the speaker changes in the broadcast
-# Returns a list with the speaker and the period when they are talking
 def diarize_text(source_file):
+    """Diarizes the audio in source_file
+
+    Args:
+        source_file (str): path to the source_file
+
+    Returns:
+        list: Containging the speakers and the time they spoke
+    """
     logger.info('Diarizing audio...')
     result = []
     discarded = False
@@ -151,9 +190,16 @@ def diarize_text(source_file):
     
     return result     
 
-# Generates a text that contains the recognized words and the speaker changes
-# Returns the generated text
 def insert_speakers(word_list, diarization):
+    """Generates text of the word_list and the speaker changes in between
+
+    Args:
+        word_list (list): recognized words and their start and end time
+        diarization (list): recognized speakers and their start and end time
+
+    Returns:
+        str: generated text
+    """
     logger.info('Inserting speakers in text...')
     word_index = 0
     word_list_len = len(word_list)
@@ -171,17 +217,29 @@ def insert_speakers(word_list, diarization):
         word_index += 1
     return result 
     
-# Restores the punctutation of the provided text
-# Returns the text with punctuation
 def punctuate_text(text):
+    """Restores punctuation for a given text
+
+    Args:
+        text (str): text to add punctuation too
+
+    Returns:
+        str: punctuated version of the text
+    """
     logger.info("Setting up punctuation model...")
     model = PunctuationModel(model ="oliverguhr/fullstop-punctuation-multilang-large")
     logger.info("Adding punctuation...")
     return model.restore_punctuation(text)
 
-# Cleans up some changes the punctuation model wrongfully made
-# Returns the adjusted text 
 def adjust_text_after_punctuation(text):
+    """Cleans up the text after punctuation
+
+    Args:
+        text (str): text to clean up
+
+    Returns:
+        str: cleaned up version of the text
+    """
     text = text.replace(". <---Neuer", " <---Neuer")
     text = text.replace(" <---Neuer", ". <---Neuer")
     text = text.replace("<---Neuer", ". <---Neuer")
@@ -192,9 +250,16 @@ def adjust_text_after_punctuation(text):
     text = text.replace("--->:", "---> ")
     return text
 
-# Restores the capitalization of the provided text
-# Returns the text with punctuation
 def correct_capitalization(text, language):
+    """Restores the capitalization for a given text
+
+    Args:
+        text (str): text to capitalize
+        language (str): language code
+
+    Returns:
+        str: capitalized text
+    """
     logger.info('Correcting capitalization...')
     stanza.download(lang = language, logging_level="ERROR")
     capitalized_text = ""
@@ -220,9 +285,15 @@ def correct_capitalization(text, language):
             previous_entry = w.text
     return capitalized_text
 
-# Cleans up the text after capitalization to increase the readability
-# Returns the adjusted text
 def adjust_text_after_capitalization(text):
+    """Cleans up the text after capitalization
+
+    Args:
+        text (str): text to clean up
+
+    Returns:
+        str: cleaned up version of the text
+    """
     text = text.replace("--->.","--->")
     text = text.replace("---> .","--->")
     text = text.replace("--->", "--->\n")
@@ -233,8 +304,13 @@ def adjust_text_after_capitalization(text):
     text = text.replace("?", "?\n")
     return text
 
-# Saves the provided text to the provided output file
 def save_to_txt(text, output_file):
+    """saves the text to output_file
+
+    Args:
+        text (str): the generated text
+        output_file (str): path to the output file
+    """
     logging.info("Writing to .txt...")
     with open(output_file, "w") as f:
             f.write(text)
