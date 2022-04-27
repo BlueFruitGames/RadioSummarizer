@@ -2,7 +2,7 @@ import logging
 import os 
 import glob
 from AudioPreprocessing import trim_audio, change_rate, setup_logging_preprocessing
-from RadioSummarizer import speech_to_text, setup_logging_summarizer
+from RadioSummarizer import speech_to_text, setup_logging_summarizer, setup_models
 import argparse
 
 intermediate_dir = "intermediate"
@@ -15,6 +15,7 @@ def setup_logging(log_level):
     """
     global logger 
     logger = logging.getLogger('Main')
+    logger.propagate = False
     ch = logging.StreamHandler()
     if log_level == "INFO":
         logger.setLevel(logging.INFO)
@@ -84,16 +85,12 @@ def check_args(args):
     if(args.input == None):
         logger.error("No source file provided!")
         exit()
-    source_file = args.input
-    does_path_exist(source_file, "SourceFile")
+    source_path = args.input
+    does_path_exist(source_path, "SourceFile")
     
-    #Reads the input of the -l flag
-    language = args.language
-    
-    #Reads the input of the -t and c flag
+    #Reads the input of the -t
     trim_file = args.trimfile
-    min_correlation = int(args.min_correlation)
-
+    
     #Reads the input of the -b flag
     if(trim_file and args.begin_sounds_dir == None):
         logger.error("No file with begin sound provided!")
@@ -101,7 +98,7 @@ def check_args(args):
     begin_sounds_dir = args.begin_sounds_dir
     if trim_file:
         does_path_exist(begin_sounds_dir, "BeginSoundDir")
-
+    
     #Reads the input of the -e flag
     if(trim_file and args.end_sounds_dir == None):
         logger.error("No directory with end sounds provided!")
@@ -109,6 +106,15 @@ def check_args(args):
     end_sounds_dir = args.end_sounds_dir
     if trim_file:
         does_path_exist(end_sounds_dir, "EndSoundDir")
+       
+    #Reads the input of the -c flag    
+    min_correlation = int(args.min_correlation)
+    
+    #Reads the input of the -d flag
+    delete_intermediate = args.delete
+    
+    #Reads the input of the -l flag
+    language = args.language    
 
     #Reads the input of the -o flag
     output_dir = args.output_dir
@@ -116,32 +122,60 @@ def check_args(args):
     if os.path.isfile(output_dir): 
         logger.error("Entered file as output folder")
         exit()
-    
-    #Reads the input of the -d flag
-    delete_intermediate = args.delete
 
-    return language, source_file, trim_file, min_correlation, begin_sounds_dir, end_sounds_dir, output_dir, delete_intermediate
+    return language, source_path, trim_file, min_correlation, begin_sounds_dir, end_sounds_dir, output_dir, delete_intermediate
  
 #Handling of program arguments   
 args = setup_args()
-language, source_file, trim_file, min_correlation, begin_sounds_dir, end_sounds_dir, output_dir, delete_intermediate = check_args(args)
+language, source_path, trim_file, min_correlation, begin_sounds_dir, end_sounds_dir, output_dir, delete_intermediate = check_args(args)
 intermediate_dir_path = os.path.join(output_dir, intermediate_dir)
 if not os.path.exists(intermediate_dir_path):
     os.makedirs(intermediate_dir_path)
 
+source_files = []
+if os.path.isfile(source_path):
+    if ".mp3" in source_path:
+        source_files.append(source_path)
+else:
+    for file in glob.glob(os.path.join(source_path, "*")):
+        if ".mp3" in file:
+            source_files.append(file)
+
+if len(source_files) == 0:
+    logger.error("No valid .mp3 as source audio provided!")
+    exit()    
+
+
 #Trimming and Conversion of the source file
 logger.info("Preparing audiofiles...")
-trimmed_file = source_file
-if trim_file:    
-    trimmed_file = trim_audio(source_file, begin_sounds_dir, end_sounds_dir, intermediate_dir_path, min_correlation)
-else:   
-    trimmed_file = change_rate(trimmed_file, intermediate_dir_path)
-   
-#Conversion of audio to text 
-logger.info("Starting conversion...")
-output_file = os.path.join(output_dir, os.path.basename(source_file).replace(".mp3", ".txt"))
+trimmed_count = 0
+trimmed_files = []
+for file in source_files:
+    if trim_file:    
+        is_trimmed, trimmed_file = trim_audio(file, begin_sounds_dir, end_sounds_dir, intermediate_dir_path, min_correlation)
+        if is_trimmed:
+            trimmed_files.append(trimmed_file)
+            trimmed_count += 1            
+    else:   
+        trimmed_files.append(change_rate(file, intermediate_dir_path))
+        
+if trim_file:
+    if trimmed_count == 1:
+        logger.info("{} of {} was successfully trimmed.".format(trimmed_count, len(source_files)))
+    else:
+        logger.info("{} of {} were successfully trimmed.".format(trimmed_count, len(source_files)))
 
-speech_to_text(trimmed_file, output_file, language)
+if len(trimmed_files) == 0:
+    logger.error("No trimmed files for conversion!")
+    exit()
+    
+#Conversion of audio to text 
+setup_models(language)
+for file in trimmed_files:
+    file_name = os.path.basename(file)
+    logger.info("Starting conversion of {}".format(file_name))
+    output_file = os.path.join(output_dir, os.path.basename(file).replace(".wav", ".txt"))
+    speech_to_text(file, output_file)
 
 #Deletion of contents in the intermediate folder
 if delete_intermediate:

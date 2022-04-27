@@ -70,6 +70,7 @@ Displays all available flags, including a short description.
 
 - `-i path`  *(Required)*
 Path to the source file containing the news broadcast. It has to be of type .mp3.
+Or a path to a folder containing multiple source files. Only files of type .mp3 will be converted.
 
 - `-l language_code` *(Optional)*
 It can be used to set the language used in the source audio. For this, you have to provide the specific language code that you can find in the stanza documentation. Defaults to "de"

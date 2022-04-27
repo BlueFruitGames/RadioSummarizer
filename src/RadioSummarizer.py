@@ -19,6 +19,7 @@ def setup_logging_summarizer(log_level):
     """
     global logger 
     logger = logging.getLogger('RadioSummarizer')
+    logger.propagate = False
     ch = logging.StreamHandler()
     if log_level == "INFO":
         logger.setLevel(logging.INFO)   
@@ -29,25 +30,42 @@ def setup_logging_summarizer(log_level):
     formatter = logging.Formatter('%(levelname)s:%(name)s: %(message)s')
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+    
+def setup_models(language):
+    """Sets up all models which will be used for the conversion
 
-def speech_to_text(source_file, output_file, language):
+    Args:
+        language (str): language_code
+    """
+    global vosk_model
+    global diarize_pipeline
+    global punctuation_model
+    global capitalization_pipeline
+    SetLogLevel(-1)
+    logger.info('Setting up speech-to-text model...')
+    vosk_model = Model(model_path)
+    logger.info('Setting up diarization pipeline...')
+    diarize_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization")
+    logger.info("Setting up punctuation model...")
+    punctuation_model = PunctuationModel(model ="oliverguhr/fullstop-punctuation-multilang-large")
+    logger.info('Setting up capitalization pipeline...')
+    stanza.download(lang = language, logging_level="ERROR")
+    capitalization_pipeline = stanza.Pipeline(processors="tokenize,pos", lang=language, logging_level="ERROR")
+    
+
+def speech_to_text(source_file, output_file):
     """Converts source_file to an output file containing the text representation of the broadcast 
 
     Args:
         source_file (str): path to the source file
         output_file (str): path to the output file
-        language (str): language code
     """
-    SetLogLevel(-1)
-    logger.info('Setting up speech-to-text model...')
-    model = Model(model_path)
-    
-    word_list = generate_text(source_file, model)
-    result_diarization = diarize_text(source_file)
+    word_list = generate_text(source_file, vosk_model)
+    result_diarization = diarize_text(source_file, diarize_pipeline)
     text = insert_speakers(word_list, result_diarization)
-    text = punctuate_text(text)
+    text = punctuate_text(text, punctuation_model)
     text = adjust_text_after_punctuation(text)
-    text = correct_capitalization(text, language)
+    text = correct_capitalization(text, capitalization_pipeline)
     text = adjust_text_after_capitalization(text)
     logger.info(text)
     save_to_txt(text,output_file) 
@@ -154,11 +172,12 @@ def merge_splits(frames, max_split_count):
         frames = temp.copy()
     return frames   
 
-def diarize_text(source_file):
+def diarize_text(source_file, pipeline):
     """Diarizes the audio in source_file
 
     Args:
         source_file (str): path to the source_file
+        pipeline (pyannote.audio.pipelines.speaker_diarization.SpeakerDiarization): the pyannote pipeline to use
 
     Returns:
         list: Containging the speakers and the time they spoke
@@ -168,7 +187,6 @@ def diarize_text(source_file):
     discarded = False
     discard_limit = 4.0
     
-    pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization")
     diarization = pipeline(source_file)
     for turn, _, speaker in diarization.itertracks(yield_label=True):
         if len(result) == 0:
@@ -187,20 +205,19 @@ def diarize_text(source_file):
                 result.append([turn.start, turn.end, speaker])
             discarded = False
 
-    
     return result     
 
-def insert_speakers(word_list, diarization):
+def insert_speakers(word_list, diarization_list):
     """Generates text of the word_list and the speaker changes in between
 
     Args:
         word_list (list): recognized words and their start and end time
-        diarization (list): recognized speakers and their start and end time
+        diarization_list (list): recognized speakers and their start and end time
 
     Returns:
         str: generated text
     """
-    logger.info('Inserting speakers in text...')
+    logger.info('Inserting speakers into text...')
     word_index = 0
     word_list_len = len(word_list)
     speaker_index = 1
@@ -210,24 +227,23 @@ def insert_speakers(word_list, diarization):
     
     while word_index < word_list_len:
         # If the time of the current word is greater than the time of the next speaker, then add a speaker change to the text
-        if word_list[word_index][1] and speaker_index < len(diarization) and diarization[speaker_index][0] - offset < word_list[word_index][2]:
+        if word_list[word_index][1] and speaker_index < len(diarization_list) and diarization_list[speaker_index][0] - offset < word_list[word_index][2]:
             result = result + speaker_text
             speaker_index += 1
         result = result + " " + word_list[word_index][0]
         word_index += 1
     return result 
     
-def punctuate_text(text):
+def punctuate_text(text, model):
     """Restores punctuation for a given text
 
     Args:
         text (str): text to add punctuation too
+        model (deepmultilingualpunctuation.punctuationmodel.PunctuationModel): the model to restore punctuation
 
     Returns:
         str: punctuated version of the text
     """
-    logger.info("Setting up punctuation model...")
-    model = PunctuationModel(model ="oliverguhr/fullstop-punctuation-multilang-large")
     logger.info("Adding punctuation...")
     return model.restore_punctuation(text)
 
@@ -250,21 +266,19 @@ def adjust_text_after_punctuation(text):
     text = text.replace("--->:", "---> ")
     return text
 
-def correct_capitalization(text, language):
+def correct_capitalization(text, pipeline):
     """Restores the capitalization for a given text
 
     Args:
         text (str): text to capitalize
-        language (str): language code
+        pipline (stanza.pipeline.core.Pipeline): the pipeline to restore capitalization
 
     Returns:
         str: capitalized text
     """
-    logger.info('Correcting capitalization...')
-    stanza.download(lang = language, logging_level="ERROR")
+    logger.info("Correcting capitalization...")
     capitalized_text = ""
-    nlp = stanza.Pipeline(processors="tokenize,pos", lang=language, logging_level="ERROR")
-    doc = nlp(text)
+    doc = pipeline(text)
     previous_entry = "."
     for sent in doc.sentences:
         for w in sent.words:
