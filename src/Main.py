@@ -41,7 +41,7 @@ def setup_args():
     parser.add_argument("-d", "--delete", dest = "delete", action='store_true', help="Delete contents of intermediate Directory?")
     parser.add_argument("-db", "--debug", dest = "debug", action='store_true', help="Show debug information?")
     parser.add_argument("-e", "--end", dest = "end_sounds_dir", help="Directory with sound played at the ending")
-    parser.add_argument("-i", "--input",dest ="input", help="Audiofile to summarize")
+    parser.add_argument("-i", "--input",dest ="input", help="Audiofile/or Directory of files to convert")
     parser.add_argument("-l", "--language",dest ="language", default="de", help="Language used in the audiofile")
     parser.add_argument("-o", "--output_dir", dest = "output_dir", default = "output", help="Output directory")
     parser.add_argument("-t", "--trimfile", dest = "trimfile", action='store_true', help="Trim the audio file before conversion?")
@@ -72,7 +72,7 @@ def check_args(args):
         str: path to the directory with the sound samples of the beginning of a broadcast
         str: path to the directory with the sound samples of the end of a broadcast
         str: path to the output directory 
-        bool: if intermediate folder should be deleted
+        bool: if contents of intermediate directory should be deleted
     """
     #Reads the input of the -db flag
     is_debug = args.debug
@@ -120,7 +120,7 @@ def check_args(args):
     output_dir = args.output_dir
     does_path_exist(output_dir, "OutputDir")
     if os.path.isfile(output_dir): 
-        logger.error("Entered file as output folder")
+        logger.error("Entered file as output directory")
         exit()
 
     return language, source_path, trim_file, min_correlation, begin_sounds_dir, end_sounds_dir, output_dir, delete_intermediate
@@ -179,7 +179,7 @@ for file in trimmed_files:
 
 #Deletion of contents in the intermediate folder
 if delete_intermediate:
-    logger.info("Deleting files in Intermediate folder...")
+    logger.info("Deleting files in Intermediate directory...")
     files = glob.glob(intermediate_dir_path + "/*")
     for file in files:
         os.remove(file)

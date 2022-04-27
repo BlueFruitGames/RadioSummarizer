@@ -109,7 +109,7 @@ def find_best_correlation(y_source_audio, sr_source_audio, sounds_dir, threshold
     offset = -1
     file = None
     sound_files = glob.glob(os.path.join(sounds_dir, "*"))
-    #Iteration through all .mp3 in the provided folder
+    #Iteration through all .mp3 in the provided directory
     for sound_file in sound_files:
         if ".mp3" in sound_file:
             y_current_signal, sr_current_signal = librosa.load(sound_file)
