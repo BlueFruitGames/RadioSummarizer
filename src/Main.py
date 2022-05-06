@@ -133,16 +133,21 @@ if not os.path.exists(intermediate_dir_path):
     os.makedirs(intermediate_dir_path)
 
 source_files = []
+wav_files = []
 if os.path.isfile(source_path):
     if ".mp3" in source_path:
         source_files.append(source_path)
+    elif ".wav" in source_path:
+        wav_files.append(source_path)
 else:
     for file in glob.glob(os.path.join(source_path, "*")):
         if ".mp3" in file:
             source_files.append(file)
+        elif ".wav" in file:
+            wav_files.append(file)     
 
-if len(source_files) == 0:
-    logger.error("No valid .mp3 as source audio provided!")
+if len(source_files) == 0 and len(wav_files) == 0:
+    logger.error("No valid source audio/s provided!")
     exit()    
 
 
@@ -165,13 +170,14 @@ if trim_file:
     else:
         logger.info("{} of {} were successfully trimmed.".format(trimmed_count, len(source_files)))
 
-if len(trimmed_files) == 0:
-    logger.error("No trimmed files for conversion!")
+if len(trimmed_files) == 0 and len(wav_files) == 0:
+    logger.error("No files for conversion!")
     exit()
     
+files_to_convert = trimmed_files + wav_files
 #Conversion of audio to text 
 setup_models(language)
-for file in trimmed_files:
+for file in files_to_convert:
     file_name = os.path.basename(file)
     logger.info("Starting conversion of {}".format(file_name))
     output_file = os.path.join(output_dir, os.path.basename(file).replace(".wav", ".txt"))

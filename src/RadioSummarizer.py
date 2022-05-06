@@ -102,11 +102,12 @@ def generate_text(source_file, model):
             break
         if rec.AcceptWaveform(data):
             part_result = json.loads(rec.Result())
-            for cur_word in part_result["result"]:
-                word_list.append([cur_word["word"], True, cur_word["start"], cur_word["end"]])
+            if "result" in part_result:
+                for cur_word in part_result["result"]:
+                    word_list.append([cur_word["word"], True, cur_word["start"], cur_word["end"]])
         index += 1
     part_result = json.loads(rec.FinalResult())
-    if part_result["text"] != "":
+    if part_result["text"] != "" and "result" in part_result:
         for cur_word in part_result["result"]:
             word_list.append([cur_word["word"], True, cur_word["start"], cur_word["end"]])
     return word_list
@@ -221,14 +222,25 @@ def insert_speakers(word_list, diarization_list):
     word_index = 0
     word_list_len = len(word_list)
     speaker_index = 1
-    speaker_text = "<---Neuer Sprecher--->"
-    result = "<---Neuer Sprecher--->"
-    offset = 0.5
+    offset = 0.1
+    result = "<---New Speaker 00:00--->"
     
     while word_index < word_list_len:
         # If the time of the current word is greater than the time of the next speaker, then add a speaker change to the text
-        if word_list[word_index][1] and speaker_index < len(diarization_list) and diarization_list[speaker_index][0] - offset < word_list[word_index][2]:
-            result = result + speaker_text
+        if word_list[word_index][1] and speaker_index < len(diarization_list) and diarization_list[speaker_index][0] - offset<= word_list[word_index][2]:
+            minutes = int(diarization_list[speaker_index][0] / 60)
+            seconds = int(diarization_list[speaker_index][0]) % 60
+            new_speaker_text = "<---New Speaker "
+            if minutes < 10:
+                new_speaker_text += "0" + str(minutes) + ":"
+            else:
+                new_speaker_text += str(minutes) + ":"
+            if seconds < 10:
+                new_speaker_text += "0" + str(seconds) + ":"
+            else:
+               new_speaker_text += str(seconds) + ":"
+            new_speaker_text += "--->"
+            result = result + new_speaker_text
             speaker_index += 1
         result = result + " " + word_list[word_index][0]
         word_index += 1
@@ -256,14 +268,20 @@ def adjust_text_after_punctuation(text):
     Returns:
         str: cleaned up version of the text
     """
-    text = text.replace(". <---Neuer", " <---Neuer")
-    text = text.replace(" <---Neuer", ". <---Neuer")
-    text = text.replace("<---Neuer", ". <---Neuer")
+    text = text.replace(". <---", " <---")
+    text = text.replace(" <---", ". <---")
+    text = text.replace("<---", ". <---")
     text = text.replace("--->.", "---> ")
     text = text.replace("--->,", "---> ")
     text = text.replace("--->!", "---> ")
     text = text.replace("--->?", "---> ")
     text = text.replace("--->:", "---> ")
+    text = text.replace("Speaker-", "Speaker")
+    text = text.replace("Speaker.", "Speaker")
+    text = text.replace("Speaker:", "Speaker")
+    text = text.replace("Speaker,", "Speaker")
+    text = text.replace("Speaker?", "Speaker")
+    text = text.replace(":--->", "--->")
     return text
 
 def correct_capitalization(text, pipeline):
@@ -308,12 +326,13 @@ def adjust_text_after_capitalization(text):
     Returns:
         str: cleaned up version of the text
     """
+    text = text.replace(" >",">")
     text = text.replace("--->.","--->")
     text = text.replace("---> .","--->")
     text = text.replace("--->", "--->\n")
     text = text.replace("<--- ", "\n<---")
     text = text.replace(".", ".\n")
-    text = text.replace(":", ":\n")
+    #text = text.replace(":", ":\n")
     text = text.replace("!", "!\n")
     text = text.replace("?", "?\n")
     return text

@@ -46,7 +46,7 @@ To start the application, you have to run:
 
 Additionally, you have to provide additional flags to run the program correctly. The available flags are:
 - `-b path` *(Required if -t is used)*
-Path to a folder with the audio files, each containing one of the possible sound samples played at the beginning of the broadcast. The Sound files should have about the same length, and no spoken words must be in this sample.
+Path to a folder with the audio files, each containing one of the possible sound samples played at the beginning of the broadcast. The Sound files should have about the same length.
 A Length between 0.5s to 2s should be sufficient. The files have to be of type .mp3.
 
 - `-c number` *(Optional)*
@@ -62,15 +62,16 @@ Prints debug information to the console.
 Like the highest correlation value for each sound sample with the source audio.
 
 - `-e path` *(Required if -t is used)*  => Path to a folder with the audio files that contain one of the sound samples that is played at the end of the broadcast.
-The Sound files should have about the same length, and no spoken words must be in this sample.
+The Sound files should have about the same length.
 A Length between 0.5s to 2s should be sufficient. The files have to be of type .mp3.
 
 - `-h` (Optional)
 Displays all available flags, including a short description.
 
 - `-i path`  *(Required)*
-Path to the source file containing the news broadcast. It has to be of type .mp3.
-Or a path to a folder containing multiple source files. Only files of type .mp3 will be converted.
+Path to the source file containing the news broadcast. It has to be of type .mp3 or .wav.
+Or a path to a folder containing multiple source files. Only files of type .mp3 will be converted. 
+For files of type .wav it is suspected, that they were generated with this program and have the right settings.
 
 - `-l language_code` *(Optional)*
 It can be used to set the language used in the source audio. For this, you have to provide the specific language code that you can find in the stanza documentation. Defaults to "de"
